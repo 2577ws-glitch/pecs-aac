@@ -1,8 +1,8 @@
 'use strict';
 const D=window.PECS_DATA,$=id=>document.getElementById(id);
 const FITZ={'Люди и семья':'people','Профессии':'people','Действия':'action','Эмоции':'desc','Цвета':'desc','Формы':'desc','Размер и количество':'desc','Пространство':'desc','Признаки и качества':'desc','Время':'desc','Коммуникация':'social','Социальное взаимодействие':'social','Места и здания':'place','Улица':'place','Дом':'place'};
-const DEF={pin:'1234',phase:4,hidden:{},order:{},cap:{},fitz:true,speakTap:true,lang:'ru',rate:0.9,voice:'',size:'m',fav:[],recent:[],choice:[],starter:'Я хочу',useStarter:true,core:null,log:[]};
-let S=Object.assign({},DEF,JSON.parse(localStorage.getItem('pecs_s')||'{}'));
+const DEF={pin:'123456789A',phase:4,hidden:{},order:{},cap:{},fitz:true,speakTap:true,lang:'ru',rate:0.9,voice:'',size:'m',fav:[],recent:[],choice:[],starter:'Я хочу',useStarter:true,core:null,log:[]};
+let S=Object.assign({},DEF,JSON.parse(localStorage.getItem('pecs_s')||'{}'));if(S.pin==='1234'||S.pin==='123456789')S.pin='123456789A';
 const save=()=>localStorage.setItem('pecs_s',JSON.stringify(S));
 let custom=[],spec=false,cur=null,strip=[],hist=[];
 // IndexedDB
@@ -91,14 +91,14 @@ function settings(){const vs=voices.filter(v=>/^(ru|kk)/i.test(v.lang));
  '<label><input type="checkbox" id="sSt" style="width:auto"'+(S.useStarter?' checked':'')+'> Начало «Я хочу» в полосе</label><br>'+
  '<label><input type="checkbox" id="sT" style="width:auto"'+(S.speakTap?' checked':'')+'> Озвучивать карточку при нажатии</label><br>'+
  '<label><input type="checkbox" id="sF" style="width:auto"'+(S.fitz?' checked':'')+'> Цветные рамки Фицджеральда</label>'+
- '<label>Новый PIN<input id="sPin" inputmode="numeric" placeholder="оставьте пустым"></label>'+
+ '<label>Новый PIN<input id="sPin" type="text" autocomplete="off" maxlength="12" placeholder="оставьте пустым"></label>'+
  '<div class="row"><button class="btn pri" id="sOk">Сохранить</button><button class="btn" onclick="say(\'Проверка голоса\')">▶ Тест</button></div><hr>'+
  '<h4>Журнал фраз ('+S.log.length+')</h4><div class="row"><button class="btn" id="sCsv">⬇ Экспорт CSV</button><button class="btn" id="sLogC">Очистить журнал</button></div>'+
  '<table>'+S.log.slice(-30).reverse().map(l=>'<tr><td>'+new Date(l.t).toLocaleString('ru-RU')+'</td><td>'+esc(l.p)+'</td></tr>').join('')+'</table><hr>'+
  '<h4>Резервная копия</h4><div class="row"><button class="btn" id="sExp">⬇ Экспорт (JSON)</button><button class="btn" id="sImp">⬆ Импорт</button><button class="btn" id="sRst">Сброс настроек</button></div>'+
  '<p style="font-size:14px;color:#64748b">В режиме специалиста: 👁 скрыть/показать, ◀▶ порядок, нажатие на карточку — подписи, избранное, быстрая панель, поле выбора.</p><button class="btn" onclick="closeM()">Закрыть</button>');
  $('sSz').value=S.size;$('sLg').value=S.lang;$('sR').oninput=e=>$('rv').textContent=e.target.value;
- $('sOk').onclick=()=>{S.phase=+$('sPh').value;S.size=$('sSz').value;S.lang=$('sLg').value;S.voice=$('sV').value;S.rate=+$('sR').value;S.useStarter=$('sSt').checked;S.speakTap=$('sT').checked;S.fitz=$('sF').checked;const p=$('sPin').value.trim();if(p){if(!/^\d{4,8}$/.test(p))return alert('PIN: 4–8 цифр');S.pin=p}save();closeM();render()};
+ $('sOk').onclick=()=>{S.phase=+$('sPh').value;S.size=$('sSz').value;S.lang=$('sLg').value;S.voice=$('sV').value;S.rate=+$('sR').value;S.useStarter=$('sSt').checked;S.speakTap=$('sT').checked;S.fitz=$('sF').checked;const p=$('sPin').value.trim();if(p){if(!/^[0-9A-Za-zА-Яа-яЁё]{4,12}$/.test(p))return alert('PIN: 4–12 букв/цифр');S.pin=p}save();closeM();render()};
  $('sCsv').onclick=()=>download('pecs_log_'+new Date().toISOString().slice(0,10)+'.csv',csv(),'text/csv;charset=utf-8');
  $('sLogC').onclick=()=>{if(confirm('Очистить журнал?')){S.log=[];save();settings()}};
  $('sExp').onclick=()=>download('pecs_backup_'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify({settings:S,custom}),'application/json');
