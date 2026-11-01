@@ -1,0 +1,47 @@
+<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#2b6cb0"><meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon.svg"><link rel="icon" href="icon.svg">
+<title>PECS Коммуникатор</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}body{margin:0;font-family:system-ui,Arial,sans-serif;background:#f1f5f9;user-select:none;-webkit-user-select:none}
+#top{position:sticky;top:0;z-index:5;background:#2b6cb0;padding:8px;display:flex;gap:8px;align-items:stretch}
+#strip{flex:1;min-height:120px;background:#fff;border-radius:14px;display:flex;gap:6px;padding:6px;overflow-x:auto;align-items:center;cursor:pointer}
+#strip:empty::before{content:"Нажмите на карточку";color:#94a3b8;font-size:20px;padding-left:10px}
+.sc{flex:0 0 auto;width:100px;text-align:center;font-size:14px;border:4px solid #cbd5e1;border-radius:10px;background:#fff;padding:2px}
+.sc img{width:100%;height:72px;object-fit:contain}.sc.starter{background:#fef9c3;display:flex;align-items:center;justify-content:center;height:104px;font-size:20px;font-weight:bold}
+.tb{display:flex;flex-direction:column;gap:6px}.btn{border:0;border-radius:12px;font-size:18px;padding:10px 14px;background:#fff;cursor:pointer;min-width:64px;min-height:52px}
+.btn.big{font-size:28px}.btn.pri{background:#facc15}
+#bar{display:flex;gap:8px;padding:8px;align-items:center;flex-wrap:wrap}#title{font-size:22px;font-weight:bold;flex:1}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;padding:12px}
+.card{background:#fff;border-radius:16px;border:5px solid #e2e8f0;padding:6px;text-align:center;cursor:pointer;position:relative;font-size:18px;min-height:150px;display:flex;flex-direction:column}
+.card img{width:100%;aspect-ratio:1;object-fit:contain}.card:active{transform:scale(.96)}
+.card .lbl{font-weight:600;margin-top:4px;word-break:break-word}.card.hidden{opacity:.35}
+.cat{background:#2b6cb0;color:#fff;border-color:#2b6cb0}.cat img{background:#fff;border-radius:10px}
+.edit{position:absolute;top:4px;right:4px;display:flex;flex-direction:column;gap:4px}.edit button{font-size:16px;border:0;border-radius:8px;padding:6px 9px;background:#e2e8f0}
+.phase1 .grid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}.phase1 .card{font-size:28px}
+#choice{display:none;padding:12px}#choice .grid{background:#fff;border:3px dashed #2b6cb0;border-radius:16px;min-height:220px}
+.modal{position:fixed;inset:0;background:#0007;display:none;align-items:center;justify-content:center;z-index:20}.modal.on{display:flex}
+.box{background:#fff;border-radius:16px;padding:18px;max-width:640px;width:94%;max-height:90vh;overflow:auto;font-size:18px}
+.box input,.box select{font-size:20px;padding:8px;width:100%;margin:4px 0 10px}.row{display:flex;gap:8px;flex-wrap:wrap}
+table{border-collapse:collapse;width:100%;font-size:15px}td,th{border-bottom:1px solid #ddd;padding:4px;text-align:left}
+#big{position:fixed;inset:0;background:#fffe;display:none;align-items:center;justify-content:center;z-index:15;flex-direction:column;font-size:48px;font-weight:bold}#big img{max-width:70vmin;max-height:60vh}
+.fz-people{border-color:#facc15}.fz-action{border-color:#22c55e}.fz-desc{border-color:#3b82f6}.fz-noun{border-color:#f97316}.fz-social{border-color:#ec4899}.fz-place{border-color:#a855f7}.fz-misc{border-color:#94a3b8}
+#quick{display:flex;gap:6px;padding:6px 8px;overflow-x:auto;background:#e2e8f0}#quick .q{flex:0 0 auto;width:88px;font-size:14px;min-height:0;padding:3px;border-width:3px}#quick .q img{height:52px}
+.yes{background:#22c55e;color:#fff}.no{background:#ef4444;color:#fff}#starters{display:none;gap:6px;padding:6px 8px}
+.g-s .grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))}.g-l .grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}.g-l .card{font-size:24px}
+@media (max-width:600px){#top{flex-wrap:wrap}#strip{min-height:86px;flex-basis:100%}.tb{flex-direction:row;flex:1}.tb .btn{flex:1}.sc{width:72px;font-size:12px}.sc img{height:50px}.sc.starter{height:78px;font-size:15px}
+.grid{grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;padding:8px}.card{font-size:15px;min-height:0;border-width:4px}.g-l .grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}.g-s .grid{grid-template-columns:repeat(auto-fill,minmax(80px,1fr))}#title{font-size:17px}.btn{font-size:16px;min-height:46px}}
+@media (orientation:landscape) and (max-height:500px){#strip{min-height:70px}.sc img{height:40px}}
+</style></head><body>
+<div id="top"><div id="strip" title="Нажмите, чтобы произнести"></div>
+<div class="tb"><button class="btn big" id="bSpeak" title="Сказать">🔊</button><button class="btn" id="bDel" title="Удалить последнюю">⌫</button></div>
+<div class="tb"><button class="btn" id="bClr" title="Очистить">✖</button><button class="btn" id="bSpec" title="Режим специалиста">⚙</button></div></div>
+<div id="quick"></div><div id="starters"></div><div id="bar"><button class="btn" id="bBack">← Назад</button><button class="btn" id="bHome">⌂ Категории</button><div id="title"></div><button class="btn yes" id="bYes">Да</button><button class="btn no" id="bNo">Нет</button><span id="specInfo"></span></div>
+<div id="choice"><b>Поле выбора</b><div class="grid" id="choiceGrid"></div></div>
+<div class="grid" id="grid"></div>
+<div id="big"></div>
+<div class="modal" id="modal"><div class="box" id="mbox"></div></div>
+<input type="file" id="file" accept="image/*" capture="environment" style="display:none">
+<script src="data.js"></script><script src="app.js"></script>
+</body></html>
