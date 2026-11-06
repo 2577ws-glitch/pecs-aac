@@ -1,9 +1,42 @@
 'use strict';
 const D=window.PECS_DATA,$=id=>document.getElementById(id);
 const FITZ={'Люди и семья':'people','Профессии':'people','Действия':'action','Эмоции':'desc','Цвета':'desc','Формы':'desc','Размер и количество':'desc','Пространство':'desc','Признаки и качества':'desc','Время':'desc','Коммуникация':'social','Социальное взаимодействие':'social','Места и здания':'place','Улица':'place','Дом':'place'};
-const DEF={pin:'123456789A',phase:4,hidden:{},order:{},cap:{},fitz:true,speakTap:true,lang:'ru',rate:0.9,voice:'',size:'m',fav:[],recent:[],choice:[],starter:'Я хочу',useStarter:true,core:null,log:[]};
-let S=Object.assign({},DEF,JSON.parse(localStorage.getItem('pecs_s')||'{}'));if(S.pin==='1234'||S.pin==='123456789')S.pin='123456789A';
-const save=()=>localStorage.setItem('pecs_s',JSON.stringify(S));
+const DEF={phase:4,hidden:{},order:{},cap:{},fitz:true,speakTap:true,lang:'ru',rate:0.9,voice:'',size:'m',fav:[],recent:[],choice:[],starter:'Я хочу',useStarter:true,core:null,log:[]};
+let S=Object.assign({},DEF,JSON.parse(localStorage.getItem('pecs_s')||'{}'));delete S.pin;
+const PIN_STORE='pecs_pin_v1';
+const save=()=>{const o=Object.assign({},S);delete o.pin;localStorage.setItem('pecs_s',JSON.stringify(o))};
+function pinRec(){try{return JSON.parse(localStorage.getItem(PIN_STORE)||'null')}catch(e){return null}}
+async function hashPin(pin,salt){const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(salt+':'+pin));return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('')}
+async function setPin(pin){const salt=crypto.getRandomValues(new Uint8Array(16)).reduce((s,b)=>s+b.toString(16).padStart(2,'0'),'');const hash=await hashPin(pin,salt);localStorage.setItem(PIN_STORE,JSON.stringify({salt,hash,v:1}));}
+async function checkPin(pin){const r=pinRec();if(!r)return false;return (await hashPin(pin,r.salt))===r.hash}
+function setZoom(on){const m=document.querySelector('meta[name=viewport]');if(m)m.setAttribute('content',on?'width=device-width,initial-scale=1':'width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no')}
+function askPersist(){try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}}
+function pinPad(title,mode){return new Promise(resolve=>{
+  const html='<h3>'+title+'</h3><div id="pinDisp" style="font:28px/1.2 monospace;letter-spacing:6px;text-align:center;min-height:36px;margin:8px 0">· · · ·</div><div id="pinErr" style="color:#c00;font-size:14px;min-height:18px;text-align:center"></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:240px;margin:0 auto">'+
+    [1,2,3,4,5,6,7,8,9,'←',0,'OK'].map(k=>'<button type="button" class="btn pinK" data-k="'+k+'" style="font-size:22px;padding:14px 0">'+(k==='OK'?'✓':k)+'</button>').join('')+
+    '</div><p style="font-size:13px;color:#64748b;text-align:center;margin-top:10px">'+(mode==='setup'?'4–8 цифр, два раза':'Удерживайте ⚙ 3 сек, затем введите PIN')+'</p><button class="btn" id="pinCancel" style="margin-top:8px;width:100%">Отмена</button>';
+  modal(html);let buf='',first='';
+  const disp=$('pinDisp'),err=$('pinErr');
+  const show=()=>{disp.textContent=buf?('•'.repeat(buf.length)):('· · · ·');err.textContent=''};
+  $('pinCancel').onclick=()=>{closeM();resolve(null)};
+  $('mbox').querySelectorAll('.pinK').forEach(b=>b.onclick=async()=>{
+    const k=b.dataset.k;
+    if(k==='←'){buf=buf.slice(0,-1);show();return}
+    if(k==='OK'){
+      if(buf.length<4||buf.length>8){err.textContent='Нужно 4–8 цифр';return}
+      if(mode==='setup'){
+        if(!first){first=buf;buf='';disp.textContent='ещё раз';err.textContent='Повторите PIN';return}
+        if(buf!==first){err.textContent='Не совпало, сначала заново';first='';buf='';show();return}
+        await setPin(buf);closeM();resolve(true);return
+      }
+      if(await checkPin(buf)){closeM();resolve(true)}else{err.textContent='Неверный PIN';buf='';show()}
+      return
+    }
+    if(buf.length>=8)return;buf+=k;show()
+  })
+})}
+async function ensurePin(){while(!pinRec()){if(!(await pinPad('Создайте PIN специалиста','setup')))alert('Нужен PIN для защиты настроек')}}
+
 let custom=[],spec=false,cur=null,strip=[],hist=[];
 // IndexedDB
 let db;function idb(){return new Promise(r=>{try{const q=indexedDB.open('pecs',1);q.onupgradeneeded=()=>q.result.createObjectStore('cards',{keyPath:'id'});q.onsuccess=()=>{db=q.result;r()};q.onerror=()=>r()}catch(e){r()}})}
@@ -91,26 +124,29 @@ function settings(){const vs=voices.filter(v=>/^(ru|kk)/i.test(v.lang));
  '<label><input type="checkbox" id="sSt" style="width:auto"'+(S.useStarter?' checked':'')+'> Начало «Я хочу» в полосе</label><br>'+
  '<label><input type="checkbox" id="sT" style="width:auto"'+(S.speakTap?' checked':'')+'> Озвучивать карточку при нажатии</label><br>'+
  '<label><input type="checkbox" id="sF" style="width:auto"'+(S.fitz?' checked':'')+'> Цветные рамки Фицджеральда</label>'+
- '<label>Новый PIN<input id="sPin" type="text" autocomplete="off" maxlength="12" placeholder="оставьте пустым"></label>'+
+ '<label>Новый PIN (4–8 цифр)<input id="sPin" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="new-password" maxlength="8" placeholder="оставьте пустым"></label>'+
  '<div class="row"><button class="btn pri" id="sOk">Сохранить</button><button class="btn" onclick="say(\'Проверка голоса\')">▶ Тест</button></div><hr>'+
  '<h4>Журнал фраз ('+S.log.length+')</h4><div class="row"><button class="btn" id="sCsv">⬇ Экспорт CSV</button><button class="btn" id="sLogC">Очистить журнал</button></div>'+
  '<table>'+S.log.slice(-30).reverse().map(l=>'<tr><td>'+new Date(l.t).toLocaleString('ru-RU')+'</td><td>'+esc(l.p)+'</td></tr>').join('')+'</table><hr>'+
  '<h4>Резервная копия</h4><div class="row"><button class="btn" id="sExp">⬇ Экспорт (JSON)</button><button class="btn" id="sImp">⬆ Импорт</button><button class="btn" id="sRst">Сброс настроек</button></div>'+
  '<p style="font-size:14px;color:#64748b">В режиме специалиста: 👁 скрыть/показать, ◀▶ порядок, нажатие на карточку — подписи, избранное, быстрая панель, поле выбора.</p><button class="btn" onclick="closeM()">Закрыть</button>');
  $('sSz').value=S.size;$('sLg').value=S.lang;$('sR').oninput=e=>$('rv').textContent=e.target.value;
- $('sOk').onclick=()=>{S.phase=+$('sPh').value;S.size=$('sSz').value;S.lang=$('sLg').value;S.voice=$('sV').value;S.rate=+$('sR').value;S.useStarter=$('sSt').checked;S.speakTap=$('sT').checked;S.fitz=$('sF').checked;const p=$('sPin').value.trim();if(p){if(!/^[0-9A-Za-zА-Яа-яЁё]{4,12}$/.test(p))return alert('PIN: 4–12 букв/цифр');S.pin=p}save();closeM();render()};
+ $('sOk').onclick=async()=>{S.phase=+$('sPh').value;S.size=$('sSz').value;S.lang=$('sLg').value;S.voice=$('sV').value;S.rate=+$('sR').value;S.useStarter=$('sSt').checked;S.speakTap=$('sT').checked;S.fitz=$('sF').checked;const p=$('sPin').value.trim();if(p){if(!/^[0-9]{4,8}$/.test(p))return alert('PIN: 4–8 цифр');await setPin(p)}save();closeM();render()};
  $('sCsv').onclick=()=>download('pecs_log_'+new Date().toISOString().slice(0,10)+'.csv',csv(),'text/csv;charset=utf-8');
  $('sLogC').onclick=()=>{if(confirm('Очистить журнал?')){S.log=[];save();settings()}};
- $('sExp').onclick=()=>download('pecs_backup_'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify({settings:S,custom}),'application/json');
- $('sImp').onclick=()=>{const f=document.createElement('input');f.type='file';f.accept='.json,application/json';f.onchange=()=>{const r=new FileReader();r.onload=async()=>{try{const o=JSON.parse(r.result);S=Object.assign({},DEF,o.settings);save();for(const c of o.custom||[])await idbPut(c);custom=o.custom||[];closeM();render();alert('Импортировано')}catch(e){alert('Ошибка файла')}};r.readAsText(f.files[0])};f.click()};
- $('sRst').onclick=()=>{if(confirm('Сбросить все настройки (журнал и свои карточки сохранятся)?')){S=Object.assign({},DEF,{log:S.log});save();closeM();render()}}}
+ $('sExp').onclick=()=>{const st=Object.assign({},S);delete st.pin;download('pecs_backup_'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify({settings:st,custom}),'application/json')};
+ $('sImp').onclick=()=>{const f=document.createElement('input');f.type='file';f.accept='.json,application/json';f.onchange=()=>{const r=new FileReader();r.onload=async()=>{try{const o=JSON.parse(r.result);S=Object.assign({},DEF,o.settings);delete S.pin;save();for(const c of o.custom||[])await idbPut(c);custom=o.custom||[];closeM();render();alert('Импортировано')}catch(e){alert('Ошибка файла')}};r.readAsText(f.files[0])};f.click()};
+ $('sRst').onclick=()=>{if(confirm('Сбросить все настройки (журнал и свои карточки сохранятся)?')){S=Object.assign({},DEF,{log:S.log});delete S.pin;save();closeM();render()}}}
 // buttons
 $('strip').onclick=speakStrip;$('bSpeak').onclick=speakStrip;
 $('bDel').onclick=()=>{strip.pop();drawStrip()};$('bClr').onclick=()=>{strip=[];drawStrip()};
 $('bHome').onclick=()=>{cur=null;hist=[];render()};$('bBack').onclick=()=>{cur=hist.length?hist.pop():null;render()};
 $('bYes').onclick=()=>{say('Да');logPhrase('Да')};$('bNo').onclick=()=>{say('Нет');logPhrase('Нет')};
-$('bSpec').onclick=()=>{if(spec){spec=false;render();return}const p=prompt('PIN специалиста');if(p===S.pin){spec=true;render();settings()}else if(p!=null)alert('Неверный PIN')};
+let holdT=null,holdDone=false;
+$('bSpec').onpointerdown=e=>{if(spec)return;holdDone=false;holdT=setTimeout(async()=>{holdDone=true;if(!(await pinPad('PIN специалиста','unlock')))return;spec=true;setZoom(true);askPersist();render();settings()},3000)};
+$('bSpec').onpointerup=$('bSpec').onpointerleave=$('bSpec').onpointercancel=()=>{clearTimeout(holdT);holdT=null};
+$('bSpec').onclick=()=>{if(holdDone){holdDone=false;return}if(spec){spec=false;setZoom(false);render()}};
 $('specInfo').onclick=()=>spec&&settings();
 window.closeM=closeM;window.say=say;window.__pecs={csv,get S(){return S},strip:()=>phrase()};
-(async()=>{await idb();custom=await idbAll();render()})();
+(async()=>{await idb();custom=await idbAll();await ensurePin();askPersist();render()})();
 if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
